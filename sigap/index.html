@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<title>SIGAP CILACAP - Evakuasi Megathrust</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<!-- Leaflet Routing Machine CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+
+<style>
+body { margin:0; font-family:Arial; }
+h2 { background:#1e9c74; color:white; text-align:center; padding:10px; margin:0; }
+#map { height:90vh; }
+</style>
+</head>
+<body>
+
+<h2>SIGAP CILACAP - Titik Evakuasi Aman Megathrust</h2>
+<div id="map"></div>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<!-- Routing Machine JS -->
+<script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.min.js"></script>
+
+<script>
+// Inisialisasi peta
+var map = L.map('map').setView([-7.65, 109.1], 10);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution:'SIGAP CILACAP'
+}).addTo(map);
+
+// Icon Pin
+var redPin = L.icon({
+  iconUrl: 'https://cdn-icons-png.flaticon.com/512/1673/1673221.png',
+  iconSize: [30, 30],
+  iconAnchor: [15, 30],
+  popupAnchor: [0, -30]
+});
+
+var bluePin = L.icon({
+  iconUrl: 'https://cdn-icons-png.flaticon.com/512/684/684908.png',
+  iconSize: [30, 30],
+  iconAnchor: [15, 30],
+  popupAnchor: [0, -30]
+});
+
+// Shelter aman dari laut (utara)
+var evakuasi = [
+  ["Alun-Alun Cilacap", -7.725, 109.012],
+  ["RSUD Cilacap", -7.728, 109.018],
+  ["Lapangan Bulupitu", -7.722, 109.015],
+  ["Alun-Alun Kroya", -7.632, 109.250],
+  ["RSUD Kroya", -7.635, 109.255],
+  ["SMAN Kroya", -7.630, 109.248],
+  ["Lapangan Nusawungu Utara", -7.680, 109.300],
+  ["Kantor Kecamatan Nusawungu", -7.682, 109.305],
+  ["SMAN Nusawungu", -7.678, 109.298],
+  ["Lapangan Binangun Utara", -7.668, 109.230],
+  ["SMAN Binangun", -7.675, 109.235],
+  ["Lapangan Maos", -7.618, 109.140],
+  ["RS Afdila Maos", -7.622, 109.145],
+  ["Lapangan Adipala Utara", -7.668, 109.138],
+  ["Kantor Kecamatan Adipala", -7.672, 109.138]
+];
+
+// Tambahkan marker shelter
+evakuasi.forEach(function(shelter){
+  L.marker([shelter[1], shelter[2]], {icon: bluePin})
+    .addTo(map)
+    .bindPopup("<b>" + shelter[0] + "</b><br>Titik evakuasi aman dari tsunami");
+});
+
+// Lokasi user + jalur otomatis ke shelter terdekat
+map.locate({setView:true, maxZoom:12});
+map.on('locationfound', function(e){
+  // Marker lokasi user
+  var userMarker = L.marker(e.latlng, {icon: redPin})
+    .addTo(map)
+    .bindPopup("Lokasi Anda")
+    .openPopup();
+
+  // Cari shelter terdekat
+  function distance(lat1, lon1, lat2, lon2){
+    return Math.sqrt(Math.pow(lat1-lat2,2)+Math.pow(lon1-lon2,2));
+  }
+
+  var nearest = evakuasi[0];
+  var minDist = distance(e.latlng.lat, e.latlng.lng, nearest[1], nearest[2]);
+
+  for(var i=1; i<evakuasi.length; i++){
+    var d = distance(e.latlng.lat, e.latlng.lng, evakuasi[i][1], evakuasi[i][2]);
+    if(d < minDist){
+      minDist = d;
+      nearest = evakuasi[i];
+    }
+  }
+
+  var shelterLatLng = L.latLng(nearest[1], nearest[2]);
+
+  // Routing ke shelter terdekat (OSRM)
+  L.Routing.control({
+    waypoints: [e.latlng, shelterLatLng],
+    router: L.Routing.osrmv1({
+      serviceUrl: 'https://router.project-osrm.org/route/v1'
+    }),
+    lineOptions: { styles:[{color:'green', weight:4}] },
+    createMarker: function() { return null; },
+    routeWhileDragging: false
+  }).addTo(map);
+});
+
+// Error handling kalau lokasi tidak ditemukan
+map.on('locationerror', function(){
+  alert("Tidak bisa mendeteksi lokasi. Cek izin lokasi browsermu.");
+});
+</script>
+
+</body>
+</html>
